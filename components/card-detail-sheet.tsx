@@ -153,7 +153,7 @@ function DetailContent({
   const unitPrice = card.marketPrice ?? card.purchasePrice;
   const label = card.marketPrice != null
     ? card.apiId
-      ? "Prix Cardmarket"
+      ? "Prix Cardmarket · 30 j"
       : "Valeur estimée"
     : card.purchasePrice != null
       ? "Prix d’achat"

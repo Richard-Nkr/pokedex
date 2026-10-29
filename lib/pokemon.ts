@@ -237,11 +237,11 @@ async function mapLimit<T, R>(
 function firstPrice(block?: TcgdexPriceBlock | null): number | null {
   if (!block) return null;
   const candidates = [
-    block.trend,
-    block.avg,
     block.avg30,
     block.avg7,
     block.avg1,
+    block.avg,
+    block.trend,
     block.low,
   ];
   for (const candidate of candidates) {

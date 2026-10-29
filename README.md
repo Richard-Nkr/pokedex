@@ -13,7 +13,7 @@ Suivez votre collection de cartes Pokémon dans un Pokédex personnel, simple et
 - Recherche dans le catalogue FR, EN et JP (noms localisés) et ajout en un geste
 - Recherche par code imprimé, ex. `125/103`, dans les trois langues
 - Noms des Pokémon japonais affichés en anglais, avec le nom d'origine conservé et modifiable
-- Prix Cardmarket en euros, actualisation par carte ou pour toute la collection
+- Prix Cardmarket en euros (moyenne 30 jours en priorité), actualisation par carte ou pour toute la collection
 - Scans officiels, ou photo personnelle recadrée au format carte et compressée dans l'app
 - Code de série, numéro, rareté, type, état, langue et quantité
 - Valeur totale, prix d'achat, investissement et plus-value
@@ -50,7 +50,7 @@ npm run lint    # ESLint
 Votre collection et son historique de valeur sont stockés **uniquement dans le `localStorage` de votre navigateur**.
 Aucun compte, aucune base de données, aucun envoi de vos données.
 
-- Les prix proviennent de Cardmarket via TCGdex et restent indicatifs.
+- Les prix proviennent de Cardmarket via TCGdex : la moyenne 30 jours est utilisée en priorité, avec repli sur les autres moyennes, la tendance puis le prix le plus bas. Ils restent indicatifs.
 - Les scans japonais sont souvent absents : vous pouvez ajouter et recadrer votre photo depuis la fiche de la carte.
 - Les noms des Pokémon japonais sont traduits automatiquement via PokeAPI ; les cartes Dresseur, Objet ou Énergie sans équivalent restent en japonais et peuvent être renommées dans la fiche.
 - Les prix sont actualisés manuellement depuis le menu « Réglages ».
