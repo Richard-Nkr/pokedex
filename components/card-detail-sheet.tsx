@@ -26,8 +26,10 @@ import {
   relativeDate,
 } from "@/lib/format";
 import { compressImage } from "@/lib/image";
+import { translateJapaneseCard } from "@/lib/pokemon";
 import type { CardCondition, OwnedCard } from "@/lib/types";
 import { CardImage } from "./card-image";
+import { PhotoCropper } from "./photo-cropper";
 import { Sheet } from "./sheet";
 import { Field, Select, Spinner, inputClass, textareaClass } from "./ui";
 
@@ -48,20 +50,38 @@ export function CardDetailSheet({
   onRemove,
   onRefreshPrice,
 }: CardDetailSheetProps) {
+  const [crop, setCrop] = useState<{ uid: string; src: string } | null>(null);
+  const cropping = card && crop?.uid === card.uid ? crop.src : null;
+
+  function handleClose() {
+    setCrop(null);
+    onClose();
+  }
+
   return (
     <Sheet
       open={open && card !== null}
-      onClose={onClose}
-      title={card?.name ?? "Détail de la carte"}
-      subtitle={card?.setName}
+      onClose={handleClose}
+      title={cropping ? "Recadrer la photo" : card?.name || "Détail de la carte"}
+      subtitle={cropping ? "Cadrez les bords de la carte." : card?.setName}
     >
-      {card ? (
+      {card && cropping ? (
+        <PhotoCropper
+          src={cropping}
+          onCancel={() => setCrop(null)}
+          onConfirm={(dataUrl) => {
+            onUpdate(card.uid, { photo: dataUrl });
+            setCrop(null);
+          }}
+        />
+      ) : card ? (
         <DetailContent
           key={card.uid}
           card={card}
           onUpdate={onUpdate}
           onRemove={onRemove}
           onRefreshPrice={onRefreshPrice}
+          onCrop={(src) => setCrop({ uid: card.uid, src })}
         />
       ) : null}
     </Sheet>
@@ -73,11 +93,13 @@ function DetailContent({
   onUpdate,
   onRemove,
   onRefreshPrice,
+  onCrop,
 }: {
   card: OwnedCard;
   onUpdate: (uid: string, patch: Partial<OwnedCard>) => void;
   onRemove: (uid: string) => void;
   onRefreshPrice: (card: OwnedCard) => Promise<boolean>;
+  onCrop: (src: string) => void;
 }) {
   const [priceDraft, setPriceDraft] = useState(priceInputValue(card.purchasePrice));
   const [valueDraft, setValueDraft] = useState(priceInputValue(card.marketPrice));
@@ -89,6 +111,38 @@ function DetailContent({
   const [photoError, setPhotoError] = useState<string | null>(null);
   const copyTimer = useRef<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const nameEdited = useRef(false);
+
+  useEffect(() => {
+    if (
+      card.apiLang !== "ja" ||
+      !card.apiId ||
+      card.nativeName ||
+      !card.types?.length ||
+      !/[\u3040-\u30ff\u3400-\u9fff]/.test(card.name)
+    ) {
+      return;
+    }
+    let cancelled = false;
+    translateJapaneseCard(card.apiId).then((translated) => {
+      if (cancelled || !translated || nameEdited.current) return;
+      onUpdate(card.uid, {
+        name: translated.name,
+        nativeName: translated.nativeName,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    card.apiId,
+    card.apiLang,
+    card.name,
+    card.nativeName,
+    card.types,
+    card.uid,
+    onUpdate,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -137,8 +191,7 @@ function DetailContent({
     setPhotoBusy(true);
     setPhotoError(null);
     try {
-      const photo = await compressImage(file);
-      onUpdate(card.uid, { photo });
+      onCrop(await compressImage(file));
     } catch (err) {
       setPhotoError(
         err instanceof Error ? err.message : "Impossible de lire cette image.",
@@ -265,6 +318,38 @@ function DetailContent({
             {type}
           </span>
         ))}
+      </div>
+
+      <div className="mt-4">
+        <Field label="Nom affiché" hint="Modifiable">
+          <input
+            value={card.name}
+            onChange={(event) => {
+              nameEdited.current = true;
+              onUpdate(card.uid, { name: event.target.value });
+            }}
+            onBlur={() => {
+              if (!card.name.trim()) {
+                onUpdate(card.uid, {
+                  name: card.nativeName ?? "Carte sans nom",
+                });
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+            autoComplete="off"
+            className={inputClass}
+          />
+        </Field>
+        {card.nativeName ? (
+          <p className="mt-1.5 text-[11px] text-muted">
+            Nom d’origine :{" "}
+            <span lang="ja" className="text-ink">
+              {card.nativeName}
+            </span>
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-4 rounded-2xl border border-line bg-surface-2/50 p-4">

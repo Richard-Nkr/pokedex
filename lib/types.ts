@@ -10,6 +10,7 @@ export type OwnedCard = {
   imageLow?: string;
   imageHigh?: string;
   photo?: string;
+  nativeName?: string;
   setName?: string;
   code?: string;
   rarity?: string;
@@ -29,6 +30,9 @@ export type CatalogCard = {
   apiId: string;
   lang: CatalogLanguage;
   name: string;
+  nativeName?: string;
+  dexId?: number;
+  suffix?: string;
   imageLow?: string;
   imageHigh?: string;
   setId?: string;

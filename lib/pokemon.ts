@@ -33,6 +33,8 @@ type TcgdexCard = {
   image?: string | null;
   rarity?: string;
   types?: string[];
+  dexId?: number[];
+  suffix?: string;
   set: {
     id: string;
     name: string;
@@ -52,6 +54,10 @@ type TcgdexListItem = {
   localId: string;
   name: string;
   image?: string | null;
+};
+
+type PokeApiSpecies = {
+  names?: { name?: string; language?: { name?: string } }[];
 };
 
 type TcgdexSetSummary = {
@@ -86,6 +92,19 @@ const setListCache = new Map<
   CatalogLanguage,
   { value: TcgdexSetSummary[]; at: number }
 >();
+const pokemonNameCache = new Map<
+  number,
+  { value: string | null; at: number }
+>();
+const ONE_DAY = 24 * 60 * 60 * 1000;
+
+const JP_FORM_PREFIXES: Array<[string, string]> = [
+  ["アローラ", "Alolan"],
+  ["ガラル", "Galarian"],
+  ["ヒスイ", "Hisuian"],
+  ["パルデア", "Paldean"],
+  ["メガ", "Mega"],
+];
 
 function cacheKey(lang: CatalogLanguage, id: string): string {
   return `${lang}:${id}`;
@@ -256,6 +275,83 @@ export function extractPrice(card: TcgdexCard): {
   return { price: null };
 }
 
+function formatSuffix(value?: string): string {
+  const suffix = value?.trim();
+  if (!suffix) return "";
+  return suffix.toLowerCase() === "ex" ? "ex" : suffix.toUpperCase();
+}
+
+async function englishPokemonName(
+  dexId: number,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const cached = pokemonNameCache.get(dexId);
+  if (cached && Date.now() - cached.at < ONE_DAY) {
+    return cached.value;
+  }
+  try {
+    const data = await request<PokeApiSpecies>(
+      `https://pokeapi.co/api/v2/pokemon-species/${dexId}`,
+      signal,
+    );
+    const names = new Map<string, string>();
+    for (const item of data.names ?? []) {
+      const language = item.language?.name;
+      if (language && item.name) names.set(language, item.name);
+    }
+    const value = names.get("en") ?? names.get("fr") ?? null;
+    pokemonNameCache.set(dexId, { value, at: Date.now() });
+    return value;
+  } catch (error) {
+    rethrowIfAborted(error, signal);
+    return null;
+  }
+}
+
+async function translateJapaneseName(
+  rawName: string,
+  dexId?: number,
+  suffix?: string,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  if (!dexId) return null;
+  const base = await englishPokemonName(dexId, signal);
+  if (!base) return null;
+  let prefix = "";
+  for (const [japanese, english] of JP_FORM_PREFIXES) {
+    if (rawName.startsWith(japanese)) {
+      prefix = english;
+      break;
+    }
+  }
+  const rawSuffix = rawName.match(
+    /(VMAX|VSTAR|V-UNION|GX|EX|ex|BREAK|V)$/,
+  )?.[0];
+  return [prefix, base, formatSuffix(suffix ?? rawSuffix)]
+    .filter(Boolean)
+    .join(" ");
+}
+
+export async function translateJapaneseCard(
+  apiId: string,
+  signal?: AbortSignal,
+): Promise<{ name: string; nativeName: string } | null> {
+  try {
+    const detail = await getCard(apiId, "ja", signal);
+    const name = await translateJapaneseName(
+      detail.name,
+      detail.dexId?.[0],
+      detail.suffix,
+      signal,
+    );
+    if (!name || name === detail.name) return null;
+    return { name, nativeName: detail.name };
+  } catch (error) {
+    rethrowIfAborted(error, signal);
+    return null;
+  }
+}
+
 function imageUrl(
   base: string | null | undefined,
   size: "low" | "high",
@@ -322,6 +418,8 @@ function toCatalogCard(entry: CodeEntry): CatalogCard {
     apiId: detail?.id ?? item?.id ?? "",
     lang,
     name: detail?.name ?? item?.name ?? "",
+    dexId: detail?.dexId?.length === 1 ? detail.dexId[0] : undefined,
+    suffix: detail?.suffix,
     imageLow:
       imageUrl(imageBase, "low") ??
       (detail ? tcgplayerImageUrl(detail, "low") : undefined),
@@ -478,11 +576,30 @@ function uniqueSetIds(details: (TcgdexCard | null)[]): string[] {
   return Array.from(ids);
 }
 
-function finishResults(
+async function localizeJapaneseCards(
+  cards: CatalogCard[],
+  signal?: AbortSignal,
+): Promise<void> {
+  await mapLimit(cards, 6, async (card) => {
+    if (card.lang !== "ja" || !card.dexId) return;
+    const name = await translateJapaneseName(
+      card.name,
+      card.dexId,
+      card.suffix,
+      signal,
+    );
+    if (name && name !== card.name) {
+      card.nativeName = card.name;
+      card.name = name;
+    }
+  });
+}
+
+async function finishResults(
   entries: CodeEntry[],
   limit: number,
   signal?: AbortSignal,
-): CatalogCard[] {
+): Promise<CatalogCard[]> {
   if (signal?.aborted) throw abortError();
 
   const byKey = new Map<string, CodeEntry>();
@@ -494,8 +611,10 @@ function finishResults(
     }
   }
 
-  return Array.from(byKey.values())
-    .map(toCatalogCard)
+  const cards = Array.from(byKey.values()).map(toCatalogCard);
+  await localizeJapaneseCards(cards, signal);
+
+  return cards
     .sort(
       (a, b) =>
         LANGUAGE_ORDER[a.lang] - LANGUAGE_ORDER[b.lang] ||
@@ -524,7 +643,7 @@ async function searchByName(
   );
   const sets = await loadSets(uniqueSetIds(details), lang, signal);
 
-  return list.map((item, index) => {
+  const cards = list.map((item, index) => {
     const detail = details[index];
     return toCatalogCard({
       lang,
@@ -533,6 +652,8 @@ async function searchByName(
       set: detail ? sets.get(detail.set.id) ?? null : null,
     });
   });
+  await localizeJapaneseCards(cards.slice(0, NAME_RESULTS), signal);
+  return cards;
 }
 
 async function searchByTotal(

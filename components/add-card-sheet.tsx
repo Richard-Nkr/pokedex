@@ -28,6 +28,7 @@ import type {
 } from "@/lib/types";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { CardImage } from "./card-image";
+import { PhotoCropper } from "./photo-cropper";
 import { Sheet } from "./sheet";
 import {
   Chip,
@@ -96,6 +97,7 @@ export function AddCardSheet({
   const [mLanguage, setMLanguage] = useState("FR");
   const [mNote, setMNote] = useState("");
   const [photo, setPhoto] = useState<string | undefined>();
+  const [cropSrc, setCropSrc] = useState<string | undefined>();
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -203,6 +205,7 @@ export function AddCardSheet({
     setMLanguage("FR");
     setMNote("");
     setPhoto(undefined);
+    setCropSrc(undefined);
     setPhotoError(null);
   }
 
@@ -229,7 +232,7 @@ export function AddCardSheet({
     setPhotoBusy(true);
     setPhotoError(null);
     try {
-      setPhoto(await compressImage(file));
+      setCropSrc(await compressImage(file));
     } catch (err) {
       setPhotoError(
         err instanceof Error ? err.message : "Impossible de lire cette image.",
@@ -259,6 +262,26 @@ export function AddCardSheet({
       note: mNote.trim() || undefined,
     });
     handleClose();
+  }
+
+  if (cropSrc) {
+    return (
+      <Sheet
+        open={open}
+        onClose={handleClose}
+        title="Recadrer la photo"
+        subtitle="Cadrez les bords de la carte."
+      >
+        <PhotoCropper
+          src={cropSrc}
+          onCancel={() => setCropSrc(undefined)}
+          onConfirm={(dataUrl) => {
+            setPhoto(dataUrl);
+            setCropSrc(undefined);
+          }}
+        />
+      </Sheet>
+    );
   }
 
   return (

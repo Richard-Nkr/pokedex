@@ -122,6 +122,7 @@ export default function PokedexApp() {
       if (needle) {
         const haystack = [
           card.name,
+          card.nativeName,
           card.setName,
           card.code,
           card.note,
@@ -213,6 +214,7 @@ export default function PokedexApp() {
         apiId: catalog.apiId,
         apiLang: catalog.lang,
         name: catalog.name,
+        nativeName: catalog.nativeName,
         imageLow: catalog.imageLow,
         imageHigh: catalog.imageHigh,
         setName: catalog.setName || undefined,

@@ -91,6 +91,7 @@ export function normalizeCard(value: unknown): OwnedCard | null {
     imageLow: cleanImage(value.imageLow),
     imageHigh: cleanImage(value.imageHigh),
     photo: cleanImage(value.photo),
+    nativeName: cleanString(value.nativeName, 120),
     setName: cleanString(value.setName, 120),
     code: cleanString(value.code, 80),
     rarity: cleanString(value.rarity, 80),
