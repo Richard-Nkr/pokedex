@@ -2,7 +2,7 @@
 
 Suivez votre collection de cartes Pokémon dans un Pokédex personnel, simple et pensé mobile d'abord.
 
-**Démo : [pokedex-gules-mu-76.vercel.app](https://pokedex-gules-mu-76.vercel.app)**
+**Démo : [pokedex-nkr.vercel.app](https://pokedex-nkr.vercel.app)**
 
 <p align="center">
   <img src="docs/preview-mobile.webp" alt="Aperçu mobile du Pokédex TCG" width="320">
