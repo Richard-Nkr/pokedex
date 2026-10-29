@@ -1,11 +1,17 @@
 import { CONDITIONS, LANGUAGES } from "./constants";
-import type { CardCondition, OwnedCard, ValueSnapshot } from "./types";
+import type {
+  CardCondition,
+  CatalogLanguage,
+  OwnedCard,
+  ValueSnapshot,
+} from "./types";
 
 const STORAGE_KEY = "pokedex.collection.v1";
 const VALUE_HISTORY_KEY = "pokedex.value-history.v1";
 const VALUE_HISTORY_LIMIT = 180;
 const VALID_CONDITIONS = new Set(CONDITIONS.map((c) => c.value));
 const VALID_LANGUAGES = new Set<string>(LANGUAGES);
+const VALID_CATALOG_LANGUAGES = new Set<string>(["fr", "en", "ja"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -69,14 +75,22 @@ export function normalizeCard(value: unknown): OwnedCard | null {
         ? Date.parse(value.addedAt)
         : Date.now();
 
+  const apiLang =
+    typeof value.apiLang === "string" &&
+    VALID_CATALOG_LANGUAGES.has(value.apiLang)
+      ? (value.apiLang as CatalogLanguage)
+      : undefined;
+
   return {
     uid:
       cleanString(value.uid, 80) ??
       `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
     apiId: cleanString(value.apiId, 80),
+    apiLang,
     name,
     imageLow: cleanImage(value.imageLow),
     imageHigh: cleanImage(value.imageHigh),
+    photo: cleanImage(value.photo),
     setName: cleanString(value.setName, 120),
     code: cleanString(value.code, 80),
     rarity: cleanString(value.rarity, 80),

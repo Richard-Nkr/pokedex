@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Camera,
   Check,
   Copy,
   Heart,
@@ -10,7 +11,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import {
   CONDITIONS,
   CONDITION_LABELS,
@@ -24,6 +25,7 @@ import {
   priceInputValue,
   relativeDate,
 } from "@/lib/format";
+import { compressImage } from "@/lib/image";
 import type { CardCondition, OwnedCard } from "@/lib/types";
 import { CardImage } from "./card-image";
 import { Sheet } from "./sheet";
@@ -83,7 +85,10 @@ function DetailContent({
   const [refreshing, setRefreshing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const copyTimer = useRef<number | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     return () => {
@@ -125,20 +130,92 @@ function DetailContent({
     setRefreshing(false);
   }
 
+  async function handlePhoto(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setPhotoBusy(true);
+    setPhotoError(null);
+    try {
+      const photo = await compressImage(file);
+      onUpdate(card.uid, { photo });
+    } catch (err) {
+      setPhotoError(
+        err instanceof Error ? err.message : "Impossible de lire cette image.",
+      );
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  const imageSrc = card.photo ?? card.imageHigh ?? card.imageLow;
+  const imageFallback = card.photo
+    ? card.imageHigh ?? card.imageLow
+    : card.imageHigh
+      ? card.imageLow
+      : undefined;
+
   return (
     <div>
       <div className="flex justify-center">
         <div className="relative w-[186px] overflow-hidden rounded-2xl border border-line bg-surface-2 shadow-soft">
           <div className="aspect-[245/342]">
             <CardImage
-              src={card.imageHigh ?? card.imageLow}
-              fallbackSrc={card.imageHigh ? card.imageLow : undefined}
+              src={imageSrc}
+              fallbackSrc={imageFallback}
               alt={card.name}
               priority
             />
           </div>
         </div>
       </div>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handlePhoto}
+      />
+      <div className="mt-2.5 flex flex-wrap items-center justify-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={photoBusy}
+          className="flex h-7 items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 text-[11px] font-medium text-muted transition hover:text-ink disabled:opacity-60"
+        >
+          {photoBusy ? (
+            <Spinner className="h-3.5 w-3.5" />
+          ) : (
+            <Camera className="h-3.5 w-3.5" />
+          )}
+          {photoBusy
+            ? "Traitement…"
+            : card.photo
+              ? "Changer la photo"
+              : "Ajouter une photo"}
+        </button>
+        {card.photo ? (
+          <button
+            type="button"
+            onClick={() => onUpdate(card.uid, { photo: undefined })}
+            className="flex h-7 items-center gap-1 rounded-full border border-line bg-surface px-2.5 text-[11px] font-medium text-muted transition hover:border-accent/30 hover:text-accent"
+          >
+            <Trash2 className="h-3 w-3" />
+            Retirer
+          </button>
+        ) : null}
+      </div>
+      {photoError ? (
+        <p className="mx-auto mt-2 max-w-[260px] text-center text-[11px] leading-relaxed text-accent-strong">
+          {photoError}
+        </p>
+      ) : !card.photo && !card.imageLow && !card.imageHigh ? (
+        <p className="mx-auto mt-2 max-w-[240px] text-center text-[11px] leading-relaxed text-muted">
+          Pas de scan officiel. Ajoutez votre photo, elle reste sur cet
+          appareil.
+        </p>
+      ) : null}
 
       <div className="mt-3.5 flex flex-wrap items-center justify-center gap-1.5">
         <button

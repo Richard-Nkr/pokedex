@@ -28,14 +28,21 @@ export const CardTile = memo(function CardTile({
       style={{ animationDelay: `${Math.min(index, 10) * 28}ms` }}
       aria-label={`${card.name}, ${card.quantity} exemplaire${
         card.quantity > 1 ? "s" : ""
-      }`}
+      }, ${card.language}`}
     >
       <div className="relative aspect-[245/342] w-full overflow-hidden rounded-[18px] border border-line bg-surface-2 transition duration-300 group-hover:shadow-soft group-focus-visible:ring-2 group-focus-visible:ring-accent/40 group-active:scale-[0.985]">
         <CardImage
-          src={card.imageLow ?? card.imageHigh}
+          src={card.photo ?? card.imageLow ?? card.imageHigh}
+          fallbackSrc={card.photo ? card.imageLow ?? card.imageHigh : undefined}
           alt={card.name}
           className="transition-transform duration-500 group-hover:scale-[1.035]"
         />
+        <span
+          title={`Langue : ${card.language}`}
+          className="absolute bottom-2 left-2 rounded-full bg-ink/75 px-1.5 py-0.5 text-[9.5px] font-semibold text-white backdrop-blur"
+        >
+          {card.language}
+        </span>
         {card.quantity > 1 ? (
           <span className="absolute right-2 top-2 rounded-full bg-ink/80 px-2 py-0.5 text-[10.5px] font-semibold tabular text-white backdrop-blur">
             ×{card.quantity}

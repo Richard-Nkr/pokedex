@@ -16,11 +16,16 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
-import { CONDITIONS, LANGUAGES } from "@/lib/constants";
+import { CATALOG_LANGUAGES, CONDITIONS, LANGUAGES } from "@/lib/constants";
 import { eur, parsePriceInput } from "@/lib/format";
 import { compressImage } from "@/lib/image";
-import { searchCatalog } from "@/lib/pokemon";
-import type { CardCondition, CatalogCard, OwnedCard } from "@/lib/types";
+import { parseCodeQuery, searchCatalog } from "@/lib/pokemon";
+import type {
+  CardCondition,
+  CatalogCard,
+  CatalogLanguage,
+  OwnedCard,
+} from "@/lib/types";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { CardImage } from "./card-image";
 import { Sheet } from "./sheet";
@@ -41,7 +46,15 @@ type AddCardSheetProps = {
   onAddManual: (card: Omit<OwnedCard, "uid" | "addedAt">) => void;
 };
 
-const SUGGESTIONS = ["Dracaufeu", "Pikachu", "Mew", "Évoli", "Magicarpe"];
+const SUGGESTIONS: Record<CatalogLanguage, string[]> = {
+  fr: ["Dracaufeu", "Pikachu", "Mew", "Évoli", "Magicarpe"],
+  en: ["Charizard", "Pikachu", "Mew", "Eevee", "Magikarp"],
+  ja: ["リザードン", "ピカチュウ", "ミュウ", "イーブイ", "コイキング"],
+};
+
+function catalogLanguageLabel(lang: CatalogLanguage): string {
+  return CATALOG_LANGUAGES.find((item) => item.value === lang)?.label ?? lang;
+}
 
 export function AddCardSheet({
   open,
@@ -52,14 +65,17 @@ export function AddCardSheet({
 }: AddCardSheetProps) {
   const [mode, setMode] = useState<"search" | "manual">("search");
   const [query, setQuery] = useState("");
+  const [catalogLang, setCatalogLang] = useState<CatalogLanguage>("fr");
   const debouncedQuery = useDebouncedValue(query, 450);
   const [response, setResponse] = useState<{
     query: string;
+    lang: CatalogLanguage;
     attempt: number;
     data: CatalogCard[];
   } | null>(null);
   const [searchError, setSearchError] = useState<{
     query: string;
+    lang: CatalogLanguage;
     attempt: number;
     message: string;
   } | null>(null);
@@ -88,7 +104,8 @@ export function AddCardSheet({
     const map = new Map<string, number>();
     for (const card of cards) {
       if (!card.apiId) continue;
-      map.set(card.apiId, (map.get(card.apiId) ?? 0) + card.quantity);
+      const key = `${card.apiLang ?? "fr"}:${card.apiId}`;
+      map.set(key, (map.get(key) ?? 0) + card.quantity);
     }
     return map;
   }, [cards]);
@@ -115,12 +132,13 @@ export function AddCardSheet({
   useEffect(() => {
     if (!open || mode !== "search") return;
     const value = debouncedQuery.trim();
-    if (value.length < 2) return;
+    const parsed = parseCodeQuery(value);
+    if (!parsed && value.length < 2) return;
     const controller = new AbortController();
-    searchCatalog(value, controller.signal)
+    searchCatalog(value, catalogLang, controller.signal)
       .then((list) => {
         if (controller.signal.aborted) return;
-        setResponse({ query: value, attempt, data: list });
+        setResponse({ query: value, lang: catalogLang, attempt, data: list });
         setSearchError(null);
       })
       .catch((err: unknown) => {
@@ -128,13 +146,14 @@ export function AddCardSheet({
         if (err instanceof DOMException && err.name === "AbortError") return;
         setSearchError({
           query: value,
+          lang: catalogLang,
           attempt,
           message:
             "La base de cartes est momentanément injoignable. Réessayez ou ajoutez la carte manuellement.",
         });
       });
     return () => controller.abort();
-  }, [open, mode, debouncedQuery, attempt]);
+  }, [open, mode, debouncedQuery, catalogLang, attempt]);
 
   useEffect(() => {
     return () => {
@@ -144,27 +163,32 @@ export function AddCardSheet({
   }, []);
 
   const normalizedQuery = query.trim();
+  const parsedQuery = parseCodeQuery(normalizedQuery);
+  const codeQuery = parsedQuery !== null;
   const results =
     response &&
     response.query === normalizedQuery &&
-    response.attempt === attempt
+    response.attempt === attempt &&
+    (codeQuery || response.lang === catalogLang)
       ? response.data
       : null;
   const error =
     searchError &&
     searchError.query === normalizedQuery &&
-    searchError.attempt === attempt
+    searchError.attempt === attempt &&
+    (codeQuery || searchError.lang === catalogLang)
       ? searchError.message
       : null;
   const loading =
     open &&
     mode === "search" &&
-    normalizedQuery.length >= 2 &&
+    (codeQuery || normalizedQuery.length >= 2) &&
     results === null &&
     error === null;
 
   function resetPanel() {
     setQuery("");
+    setCatalogLang("fr");
     setResponse(null);
     setSearchError(null);
     setAttempt(0);
@@ -193,7 +217,7 @@ export function AddCardSheet({
 
   function handleAdd(card: CatalogCard) {
     onAddCatalog(card);
-    setJustAdded(card.apiId);
+    setJustAdded(`${card.lang}:${card.apiId}`);
     if (addedTimer.current) window.clearTimeout(addedTimer.current);
     addedTimer.current = window.setTimeout(() => setJustAdded(null), 1400);
   }
@@ -225,8 +249,7 @@ export function AddCardSheet({
       name,
       setName: mSet.trim() || undefined,
       code: mCode.trim() || undefined,
-      imageLow: photo,
-      imageHigh: photo,
+      photo,
       condition: mCondition,
       language: mLanguage,
       quantity: mQty,
@@ -243,7 +266,7 @@ export function AddCardSheet({
       open={open}
       onClose={handleClose}
       title="Ajouter une carte"
-      subtitle="Catalogue TCG ou saisie manuelle."
+      subtitle="Catalogue FR, EN, JP ou saisie manuelle."
     >
       <div className="grid grid-cols-2 gap-1 rounded-full border border-line bg-surface-2 p-1">
         <button
@@ -283,7 +306,7 @@ export function AddCardSheet({
               ref={searchRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Nom de la carte, ex. Dracaufeu"
+              placeholder="Nom ou code, ex. 125/103"
               type="text"
               inputMode="search"
               autoComplete="off"
@@ -309,18 +332,43 @@ export function AddCardSheet({
             </div>
           </div>
 
-          {query.trim().length < 2 ? (
-            <div className="mt-6 rounded-2xl border border-dashed border-line bg-surface-2/40 px-4 py-6 text-center">
+          {codeQuery ? (
+            <p className="mt-2 px-1 text-[11px] leading-relaxed text-muted">
+              Recherche par code dans{" "}
+              <span className="font-medium text-ink">FR, EN et JP</span>.
+              {parsedQuery && !parsedQuery.total
+                ? " Ajoutez le total (ex. 125/103) pour cibler une édition."
+                : ""}
+            </p>
+          ) : (
+            <div className="mt-3 flex items-center gap-1.5 px-0.5">
+              <span className="mr-1 text-[11px] text-muted">Recherche en</span>
+              {CATALOG_LANGUAGES.map((language) => (
+                <Chip
+                  key={language.value}
+                  active={catalogLang === language.value}
+                  onClick={() => setCatalogLang(language.value)}
+                  className="h-7 px-2.5 text-[11px]"
+                >
+                  {language.label}
+                </Chip>
+              ))}
+              <span className="ml-auto text-[11px] text-muted">ou par code</span>
+            </div>
+          )}
+
+          {!codeQuery && normalizedQuery.length < 2 ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-line bg-surface-2/40 px-4 py-6 text-center">
               <Sparkles className="mx-auto h-5 w-5 text-accent" />
               <p className="mt-2 text-[13px] font-medium text-ink">
                 Cherchez parmi des milliers de cartes
               </p>
-              <p className="mx-auto mt-1 max-w-[280px] text-[12px] leading-relaxed text-muted">
-                Les noms sont en français. Le prix Cardmarket et l’image sont
-                récupérés automatiquement.
+              <p className="mx-auto mt-1 max-w-[290px] text-[12px] leading-relaxed text-muted">
+                Noms en {catalogLanguageLabel(catalogLang)}, ou code comme
+                125/103. Prix Cardmarket et image récupérés automatiquement.
               </p>
               <div className="mt-4 flex flex-wrap justify-center gap-1.5">
-                {SUGGESTIONS.map((suggestion) => (
+                {SUGGESTIONS[catalogLang].map((suggestion) => (
                   <Chip
                     key={suggestion}
                     onClick={() => setQuery(suggestion)}
@@ -329,6 +377,12 @@ export function AddCardSheet({
                     {suggestion}
                   </Chip>
                 ))}
+                <Chip
+                  onClick={() => setQuery("125/103")}
+                  className="h-7 bg-surface px-3 text-[11.5px]"
+                >
+                  Code · 125/103
+                </Chip>
               </div>
             </div>
           ) : loading && results === null ? (
@@ -371,8 +425,12 @@ export function AddCardSheet({
               <p className="text-[13px] font-medium text-ink">
                 Aucune carte trouvée
               </p>
-              <p className="mt-1 text-[12px] text-muted">
-                Essayez un autre nom ou ajoutez la carte manuellement.
+              <p className="mt-1 text-[12px] leading-relaxed text-muted">
+                {codeQuery
+                  ? parsedQuery?.total
+                    ? "Vérifiez le numéro et le total, ou essayez le nom de la carte."
+                    : "Vérifiez le numéro, ou ajoutez le total (ex. 125/103)."
+                  : "Essayez un autre nom ou ajoutez la carte manuellement."}
               </p>
               <button
                 type="button"
@@ -388,15 +446,22 @@ export function AddCardSheet({
                 <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
                   Résultats
                 </p>
-                <p className="text-[11px] text-muted">{results.length}</p>
+                <p className="text-[11px] text-muted">
+                  {codeQuery
+                    ? "FR · EN · JP"
+                    : catalogLanguageLabel(catalogLang)}{" "}
+                  · {results.length}
+                </p>
               </div>
               <div className="space-y-1.5">
                 {results.map((card) => {
-                  const owned = ownedByApi.get(card.apiId) ?? 0;
-                  const isJustAdded = justAdded === card.apiId;
+                  const key = `${card.lang}:${card.apiId}`;
+                  const owned = ownedByApi.get(key) ?? 0;
+                  const isJustAdded = justAdded === key;
+                  const langLabel = catalogLanguageLabel(card.lang);
                   return (
                     <button
-                      key={card.apiId}
+                      key={key}
                       type="button"
                       onClick={() => handleAdd(card)}
                       className="group flex w-full items-center gap-3 rounded-2xl border border-transparent p-2 text-left transition hover:border-line hover:bg-surface-2/60 active:scale-[0.99]"
@@ -405,9 +470,14 @@ export function AddCardSheet({
                         <CardImage src={card.imageLow} alt={card.name} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13.5px] font-medium text-ink">
-                          {card.name}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-[13.5px] font-medium text-ink">
+                            {card.name}
+                          </p>
+                          <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[9.5px] font-semibold text-muted">
+                            {langLabel}
+                          </span>
+                        </div>
                         <p className="mt-0.5 truncate text-[11.5px] text-muted">
                           {card.setName || "Série inconnue"}
                           {card.code ? ` · ${card.code}` : ""}
@@ -442,8 +512,9 @@ export function AddCardSheet({
                   );
                 })}
               </div>
-              <p className="mt-3 px-1 text-center text-[11px] text-muted">
-                Touchez une carte pour l’ajouter. Prix Cardmarket indicatif.
+              <p className="mt-3 px-1 text-center text-[11px] leading-relaxed text-muted">
+                Touchez une carte pour l’ajouter. Les cartes sans scan, souvent
+                japonaises, acceptent une photo dans le détail.
               </p>
             </div>
           ) : null}
@@ -531,7 +602,7 @@ export function AddCardSheet({
               <input
                 value={mCode}
                 onChange={(event) => setMCode(event.target.value)}
-                placeholder="Ex. MEW 151"
+                placeholder="Ex. MEW 151/165"
                 className={inputClass}
               />
             </Field>

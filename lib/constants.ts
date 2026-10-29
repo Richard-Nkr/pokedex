@@ -1,4 +1,14 @@
-import type { CardCondition, SortKey } from "./types";
+import type { CardCondition, CatalogLanguage, SortKey } from "./types";
+
+export const CATALOG_LANGUAGES: {
+  value: CatalogLanguage;
+  label: string;
+  cardLanguage: string;
+}[] = [
+  { value: "fr", label: "FR", cardLanguage: "FR" },
+  { value: "en", label: "EN", cardLanguage: "EN" },
+  { value: "ja", label: "JP", cardLanguage: "JP" },
+];
 
 export const CONDITIONS: {
   value: CardCondition;

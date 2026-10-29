@@ -25,13 +25,14 @@ import {
   useState,
 } from "react";
 import { mapWithConcurrency } from "@/lib/async";
-import { SORT_OPTIONS } from "@/lib/constants";
+import { CATALOG_LANGUAGES, SORT_OPTIONS } from "@/lib/constants";
 import { eur, num, plural } from "@/lib/format";
 import { fetchCardPrice } from "@/lib/pokemon";
 import { downloadCollection } from "@/lib/storage";
 import { getCollectionTotals } from "@/lib/totals";
 import type {
   CatalogCard,
+  CatalogLanguage,
   OwnedCard,
   SortKey,
   ToastMessage,
@@ -53,6 +54,10 @@ function createUid(): string {
     return crypto.randomUUID();
   }
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function cardLanguageFor(lang: CatalogLanguage): string {
+  return CATALOG_LANGUAGES.find((item) => item.value === lang)?.cardLanguage ?? "FR";
 }
 
 export default function PokedexApp() {
@@ -115,7 +120,13 @@ export default function PokedexApp() {
         return false;
       }
       if (needle) {
-        const haystack = [card.name, card.setName, card.code, card.note]
+        const haystack = [
+          card.name,
+          card.setName,
+          card.code,
+          card.note,
+          card.language,
+        ]
           .filter(Boolean)
           .join(" ")
           .toLocaleLowerCase("fr");
@@ -182,7 +193,11 @@ export default function PokedexApp() {
 
   const addCatalogCard = useCallback(
     (catalog: CatalogCard) => {
-      const existing = cards.find((card) => card.apiId === catalog.apiId);
+      const existing = cards.find(
+        (card) =>
+          card.apiId === catalog.apiId &&
+          (card.apiLang ?? "fr") === catalog.lang,
+      );
       if (existing) {
         const quantity = Math.min(999, existing.quantity + 1);
         setCards((current) =>
@@ -196,6 +211,7 @@ export default function PokedexApp() {
       const card: OwnedCard = {
         uid: createUid(),
         apiId: catalog.apiId,
+        apiLang: catalog.lang,
         name: catalog.name,
         imageLow: catalog.imageLow,
         imageHigh: catalog.imageHigh,
@@ -204,7 +220,7 @@ export default function PokedexApp() {
         rarity: catalog.rarity,
         types: catalog.types,
         condition: "NM",
-        language: "FR",
+        language: cardLanguageFor(catalog.lang),
         quantity: 1,
         marketPrice: catalog.marketPrice ?? undefined,
         priceUpdatedAt: catalog.priceUpdatedAt,
@@ -231,27 +247,31 @@ export default function PokedexApp() {
 
   const refreshAllPrices = useCallback(async () => {
     if (refreshLock.current) return;
-    const apiIds = Array.from(
-      new Set(
-        cards
-          .map((card) => card.apiId)
-          .filter((id): id is string => Boolean(id)),
-      ),
-    );
-    if (apiIds.length === 0) {
+    const tasksByKey = new Map<
+      string,
+      { key: string; apiId: string; lang: CatalogLanguage }
+    >();
+    for (const card of cards) {
+      if (!card.apiId) continue;
+      const lang = card.apiLang ?? "fr";
+      const key = `${lang}:${card.apiId}`;
+      tasksByKey.set(key, { key, apiId: card.apiId, lang });
+    }
+    const tasks = Array.from(tasksByKey.values());
+    if (tasks.length === 0) {
       notify("Aucune carte liée à la base de prix");
       return;
     }
     refreshLock.current = true;
-    setRefreshState({ done: 0, total: apiIds.length });
+    setRefreshState({ done: 0, total: tasks.length });
     const results = new Map<
       string,
       { price: number | null; updatedAt: string }
     >();
     let failures = 0;
-    await mapWithConcurrency(apiIds, 4, async (id) => {
+    await mapWithConcurrency(tasks, 4, async (task) => {
       try {
-        results.set(id, await fetchCardPrice(id));
+        results.set(task.key, await fetchCardPrice(task.apiId, task.lang));
       } catch {
         failures += 1;
       }
@@ -262,7 +282,8 @@ export default function PokedexApp() {
     setCards((current) =>
       current.map((card) => {
         if (!card.apiId) return card;
-        const result = results.get(card.apiId);
+        const key = `${card.apiLang ?? "fr"}:${card.apiId}`;
+        const result = results.get(key);
         if (!result) return card;
         return {
           ...card,
@@ -276,7 +297,7 @@ export default function PokedexApp() {
     notify(
       failures > 0
         ? `Prix actualisés · ${failures} échec${failures > 1 ? "s" : ""}`
-        : `Prix actualisés · ${plural(apiIds.length, "carte")}`,
+        : `Prix actualisés · ${plural(tasks.length, "prix", "prix")}`,
     );
   }, [cards, notify, setCards]);
 
@@ -287,7 +308,7 @@ export default function PokedexApp() {
         return false;
       }
       try {
-        const result = await fetchCardPrice(card.apiId);
+        const result = await fetchCardPrice(card.apiId, card.apiLang ?? "fr");
         setCards((current) =>
           current.map((item) =>
             item.uid === card.uid

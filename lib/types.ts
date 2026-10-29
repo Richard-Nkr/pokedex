@@ -1,11 +1,15 @@
 export type CardCondition = "NM" | "EX" | "GD" | "LP" | "PL" | "PO";
 
+export type CatalogLanguage = "fr" | "en" | "ja";
+
 export type OwnedCard = {
   uid: string;
   apiId?: string;
+  apiLang?: CatalogLanguage;
   name: string;
   imageLow?: string;
   imageHigh?: string;
+  photo?: string;
   setName?: string;
   code?: string;
   rarity?: string;
@@ -23,9 +27,11 @@ export type OwnedCard = {
 
 export type CatalogCard = {
   apiId: string;
+  lang: CatalogLanguage;
   name: string;
   imageLow?: string;
   imageHigh?: string;
+  setId?: string;
   setName: string;
   setCode: string;
   localId: string;
