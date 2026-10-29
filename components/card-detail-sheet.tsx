@@ -132,6 +132,7 @@ function DetailContent({
           <div className="aspect-[245/342]">
             <CardImage
               src={card.imageHigh ?? card.imageLow}
+              fallbackSrc={card.imageHigh ? card.imageLow : undefined}
               alt={card.name}
               priority
             />

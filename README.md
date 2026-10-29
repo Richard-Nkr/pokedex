@@ -15,6 +15,7 @@ Suivez votre collection de cartes Pokémon dans un Pokédex personnel, simple et
 - Scans officiels, ou photo personnelle compressée directement dans l'app
 - Code de série, numéro, rareté, type, état, langue et quantité
 - Valeur totale, prix d'achat, investissement et plus-value
+- Historique local de la valeur de la collection, avec courbe dans les statistiques
 - Statistiques par série et par état
 - Favoris, filtres par série, recherche locale et tri
 - Export / import JSON pour sauvegarder ou changer d'appareil
@@ -44,8 +45,8 @@ npm run lint    # ESLint
 
 ## Données et prix
 
-Votre collection est stockée **uniquement dans le `localStorage` de votre navigateur**.
-Aucun compte, aucune base de données, aucun envoi de votre collection.
+Votre collection et son historique de valeur sont stockés **uniquement dans le `localStorage` de votre navigateur**.
+Aucun compte, aucune base de données, aucun envoi de vos données.
 
 - Les prix proviennent de Cardmarket via TCGdex et restent indicatifs.
 - Ils sont actualisés manuellement depuis le menu « Réglages ».

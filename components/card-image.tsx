@@ -7,24 +7,42 @@ import { Pokeball } from "./pokeball";
 
 type CardImageProps = {
   src?: string;
+  fallbackSrc?: string;
   alt: string;
   className?: string;
   priority?: boolean;
 };
 
 export function CardImage(props: CardImageProps) {
-  return <CardImageInner key={props.src ?? "placeholder"} {...props} />;
+  return (
+    <CardImageInner
+      key={`${props.src ?? ""}|${props.fallbackSrc ?? ""}`}
+      {...props}
+    />
+  );
 }
 
-function CardImageInner({ src, alt, className, priority }: CardImageProps) {
+function CardImageInner({
+  src,
+  fallbackSrc,
+  alt,
+  className,
+  priority,
+}: CardImageProps) {
   const [attempt, setAttempt] = useState(0);
   const [loaded, setLoaded] = useState(() => src?.startsWith("data:") ?? false);
 
+  const bases = [src, fallbackSrc].filter(
+    (value): value is string => Boolean(value),
+  );
   const sources: string[] = [];
-  if (src) {
-    sources.push(src);
-    if (src.includes("/fr/")) {
-      sources.push(src.replace("/fr/", "/en/"));
+  for (const base of bases) {
+    if (!sources.includes(base)) sources.push(base);
+  }
+  for (const base of bases) {
+    if (base.includes("/fr/")) {
+      const english = base.replace("/fr/", "/en/");
+      if (!sources.includes(english)) sources.push(english);
     }
   }
 

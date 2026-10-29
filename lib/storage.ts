@@ -1,7 +1,9 @@
 import { CONDITIONS, LANGUAGES } from "./constants";
-import type { CardCondition, OwnedCard } from "./types";
+import type { CardCondition, OwnedCard, ValueSnapshot } from "./types";
 
 const STORAGE_KEY = "pokedex.collection.v1";
+const VALUE_HISTORY_KEY = "pokedex.value-history.v1";
+const VALUE_HISTORY_LIMIT = 180;
 const VALID_CONDITIONS = new Set(CONDITIONS.map((c) => c.value));
 const VALID_LANGUAGES = new Set<string>(LANGUAGES);
 
@@ -110,6 +112,93 @@ export function saveCollection(cards: OwnedCard[]): boolean {
   } catch {
     return false;
   }
+}
+
+export function loadValueHistory(): ValueSnapshot[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(VALUE_HISTORY_KEY);
+    if (!raw) return [];
+    return sanitizeValueHistory(JSON.parse(raw));
+  } catch {
+    return [];
+  }
+}
+
+export function saveValueHistory(history: ValueSnapshot[]): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    window.localStorage.setItem(VALUE_HISTORY_KEY, JSON.stringify(history));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function mergeValueSnapshot(
+  history: ValueSnapshot[],
+  snapshot: ValueSnapshot,
+): ValueSnapshot[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(snapshot.date)) return history;
+  const value = cleanNumber(snapshot.value, 1_000_000_000);
+  if (value == null) return history;
+  const quantity = Math.max(0, Math.floor(cleanNumber(snapshot.quantity, 999_999) ?? 0));
+  const clean = sanitizeValueHistory(history);
+  const nextSnapshot: ValueSnapshot = {
+    date: snapshot.date,
+    value,
+    quantity,
+  };
+
+  const last = clean[clean.length - 1];
+  if (
+    last &&
+    last.date === nextSnapshot.date &&
+    last.value === nextSnapshot.value &&
+    last.quantity === nextSnapshot.quantity
+  ) {
+    return history;
+  }
+
+  const next = clean.filter((item) => item.date !== nextSnapshot.date);
+  next.push(nextSnapshot);
+  next.sort((a, b) => a.date.localeCompare(b.date));
+  const trimmed = next.slice(-VALUE_HISTORY_LIMIT);
+
+  if (
+    trimmed.length === history.length &&
+    trimmed.every(
+      (item, index) =>
+        item.date === history[index].date &&
+        item.value === history[index].value &&
+        item.quantity === history[index].quantity,
+    )
+  ) {
+    return history;
+  }
+
+  return trimmed;
+}
+
+function sanitizeValueHistory(value: unknown): ValueSnapshot[] {
+  if (!Array.isArray(value)) return [];
+  const byDate = new Map<string, ValueSnapshot>();
+  for (const item of value) {
+    if (!isRecord(item)) continue;
+    if (typeof item.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(item.date)) {
+      continue;
+    }
+    const parsed = cleanNumber(item.value, 1_000_000_000);
+    if (parsed == null) continue;
+    const quantity = Math.max(
+      0,
+      Math.floor(cleanNumber(item.quantity, 999_999) ?? 0),
+    );
+    byDate.set(item.date, { date: item.date, value: parsed, quantity });
+  }
+  return Array.from(byDate.values())
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-VALUE_HISTORY_LIMIT);
 }
 
 export function parseCollection(raw: string): OwnedCard[] | null {

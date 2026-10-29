@@ -29,6 +29,7 @@ import { SORT_OPTIONS } from "@/lib/constants";
 import { eur, num, plural } from "@/lib/format";
 import { fetchCardPrice } from "@/lib/pokemon";
 import { downloadCollection } from "@/lib/storage";
+import { getCollectionTotals } from "@/lib/totals";
 import type {
   CatalogCard,
   OwnedCard,
@@ -36,6 +37,7 @@ import type {
   ToastMessage,
 } from "@/lib/types";
 import { useCollection } from "@/lib/use-collection";
+import { useValueHistory } from "@/lib/use-value-history";
 import { AddCardSheet } from "@/components/add-card-sheet";
 import { CardDetailSheet } from "@/components/card-detail-sheet";
 import { CardTile } from "@/components/card-tile";
@@ -55,6 +57,7 @@ function createUid(): string {
 
 export default function PokedexApp() {
   const { cards, setCards, loaded, storageError, replaceAll } = useCollection();
+  const valueHistory = useValueHistory(cards, loaded);
 
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -86,17 +89,7 @@ export default function PokedexApp() {
     };
   }, []);
 
-  const totals = useMemo(() => {
-    let totalQty = 0;
-    let value = 0;
-    let invested = 0;
-    for (const card of cards) {
-      totalQty += card.quantity;
-      value += (card.marketPrice ?? card.purchasePrice ?? 0) * card.quantity;
-      invested += (card.purchasePrice ?? 0) * card.quantity;
-    }
-    return { totalQty, value, invested, gain: value - invested };
-  }, [cards]);
+  const totals = useMemo(() => getCollectionTotals(cards), [cards]);
 
   const sets = useMemo(() => {
     const map = new Map<string, number>();
@@ -460,8 +453,9 @@ export default function PokedexApp() {
                     <Layers className="h-3.5 w-3.5 text-muted" />
                     {plural(totals.totalQty, "carte")}
                   </span>
-                  {totals.invested > 0 ? (
+                  {totals.costedQty > 0 ? (
                     <span
+                      title="Plus-value sur les cartes avec un prix d’achat"
                       className={`inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[11.5px] font-semibold tabular ${
                         totals.gain >= 0
                           ? "bg-positive-soft text-positive"
@@ -649,6 +643,7 @@ export default function PokedexApp() {
         open={statsOpen}
         onClose={() => setStatsOpen(false)}
         cards={cards}
+        history={valueHistory}
       />
 
       <MenuSheet

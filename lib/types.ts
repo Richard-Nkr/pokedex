@@ -37,6 +37,12 @@ export type CatalogCard = {
   priceUpdatedAt?: string;
 };
 
+export type ValueSnapshot = {
+  date: string;
+  value: number;
+  quantity: number;
+};
+
 export type SortKey = "recent" | "value-desc" | "value-asc" | "name";
 
 export type ToastMessage = {

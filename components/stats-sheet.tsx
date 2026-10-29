@@ -3,23 +3,25 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { useMemo } from "react";
 import { CONDITIONS, CONDITION_COLORS } from "@/lib/constants";
-import { eur, num } from "@/lib/format";
-import type { OwnedCard } from "@/lib/types";
+import { eur, num, plural } from "@/lib/format";
+import { getCollectionTotals } from "@/lib/totals";
+import type { OwnedCard, ValueSnapshot } from "@/lib/types";
 import { Sheet } from "./sheet";
+import { ValueChart } from "./value-chart";
 
 export function StatsSheet({
   open,
   onClose,
   cards,
+  history,
 }: {
   open: boolean;
   onClose: () => void;
   cards: OwnedCard[];
+  history: ValueSnapshot[];
 }) {
+  const totals = useMemo(() => getCollectionTotals(cards), [cards]);
   const stats = useMemo(() => {
-    let totalQty = 0;
-    let value = 0;
-    let invested = 0;
     let favorites = 0;
     const setMap = new Map<string, { count: number; value: number }>();
     const conditionMap = new Map<string, number>();
@@ -27,9 +29,6 @@ export function StatsSheet({
     for (const card of cards) {
       const unit = card.marketPrice ?? card.purchasePrice;
       const cardValue = (unit ?? 0) * card.quantity;
-      totalQty += card.quantity;
-      value += cardValue;
-      invested += (card.purchasePrice ?? 0) * card.quantity;
       if (card.favorite) favorites += 1;
       const setName = card.setName?.trim() || "Sans série";
       const set = setMap.get(setName) ?? { count: 0, value: 0 };
@@ -52,18 +51,15 @@ export function StatsSheet({
     }));
 
     return {
-      totalQty,
-      value,
-      invested,
+      ...totals,
       favorites,
       sets,
       maxSetValue,
       conditions,
-      gain: value - invested,
     };
-  }, [cards]);
+  }, [cards, totals]);
 
-  const hasInvested = stats.invested > 0;
+  const hasCostData = stats.costedQty > 0;
 
   return (
     <Sheet
@@ -83,12 +79,12 @@ export function StatsSheet({
           <div>
             <p className="text-[11px] text-muted">Investi</p>
             <p className="mt-0.5 text-[14px] font-semibold tabular">
-              {stats.invested > 0 ? eur(stats.invested) : "—"}
+              {hasCostData ? eur(stats.invested) : "—"}
             </p>
           </div>
           <div className="text-right">
             <p className="text-[11px] text-muted">Plus-value</p>
-            {hasInvested ? (
+            {hasCostData ? (
               <p
                 className={`mt-0.5 flex items-center justify-end gap-1 text-[14px] font-semibold tabular ${
                   stats.gain >= 0 ? "text-positive" : "text-accent"
@@ -106,9 +102,15 @@ export function StatsSheet({
             )}
           </div>
         </div>
-        {!hasInvested ? (
+        {!hasCostData ? (
           <p className="mt-3 border-t border-line pt-3 text-[11px] leading-relaxed text-muted">
             Ajoutez un prix d’achat à vos cartes pour suivre votre plus-value.
+          </p>
+        ) : null}
+        {hasCostData && stats.missingCostQty > 0 ? (
+          <p className="mt-3 border-t border-line pt-3 text-[11px] leading-relaxed text-muted">
+            Plus-value calculée sur {plural(stats.costedQty, "carte")} avec un
+            prix d’achat.
           </p>
         ) : null}
       </div>
@@ -119,6 +121,15 @@ export function StatsSheet({
         <StatTile label="Séries" value={num(stats.sets.length)} />
         <StatTile label="Favoris" value={num(stats.favorites)} />
       </div>
+
+      {history.length >= 2 ? (
+        <ValueChart history={history} />
+      ) : history.length === 1 ? (
+        <p className="mt-3 text-[11px] leading-relaxed text-muted">
+          L’historique de valeur se construit à chaque ouverture. La courbe
+          apparaîtra au fil des jours.
+        </p>
+      ) : null}
 
       {stats.sets.length > 0 ? (
         <div className="mt-6">
@@ -214,7 +225,8 @@ export function StatsSheet({
 
       <p className="mt-6 text-[11px] leading-relaxed text-muted">
         Les valeurs utilisent le prix Cardmarket quand il est disponible, sinon
-        le prix d’achat renseigné. Les prix sont indicatifs.
+        le prix d’achat renseigné. Les prix sont indicatifs. L’historique de
+        valeur reste sur cet appareil.
       </p>
     </Sheet>
   );
