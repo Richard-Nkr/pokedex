@@ -315,7 +315,12 @@ function DetailContent({
         <Field label="Prix d’achat" hint="€">
           <input
             value={priceDraft}
-            onChange={(event) => setPriceDraft(event.target.value)}
+            onChange={(event) => {
+              setPriceDraft(event.target.value);
+              onUpdate(card.uid, {
+                purchasePrice: parsePriceInput(event.target.value),
+              });
+            }}
             onBlur={() =>
               onUpdate(card.uid, {
                 purchasePrice: parsePriceInput(priceDraft),
@@ -334,7 +339,12 @@ function DetailContent({
             <Field label="Valeur estimée" hint="€">
               <input
                 value={valueDraft}
-                onChange={(event) => setValueDraft(event.target.value)}
+                onChange={(event) => {
+                  setValueDraft(event.target.value);
+                  onUpdate(card.uid, {
+                    marketPrice: parsePriceInput(event.target.value),
+                  });
+                }}
                 onBlur={() =>
                   onUpdate(card.uid, {
                     marketPrice: parsePriceInput(valueDraft),

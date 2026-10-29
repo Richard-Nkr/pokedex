@@ -18,7 +18,7 @@ Suivez votre collection de cartes Pokémon dans un Pokédex personnel, simple et
 - Statistiques par série et par état
 - Favoris, filtres par série, recherche locale et tri
 - Export / import JSON pour sauvegarder ou changer d'appareil
-- PWA installable, thème clair/sombre automatique
+- Ajout à l'écran d'accueil (manifest, icônes), thème clair/sombre automatique
 
 ## Stack
 
