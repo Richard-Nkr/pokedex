@@ -2,6 +2,8 @@
 
 Suivez votre collection de cartes Pokémon dans un Pokédex personnel, simple et pensé mobile d'abord.
 
+**Démo : [pokedex-gules-mu-76.vercel.app](https://pokedex-gules-mu-76.vercel.app)**
+
 <p align="center">
   <img src="docs/preview-mobile.webp" alt="Aperçu mobile du Pokédex TCG" width="320">
 </p>
@@ -51,7 +53,7 @@ Aucun compte, aucune base de données, aucun envoi de votre collection.
 
 ## Déploiement
 
-Le projet est prêt pour Vercel :
+Le projet est hébergé sur Vercel et chaque push sur `main` redéploie la production.
 
 ```bash
 npx vercel --prod
