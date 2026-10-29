@@ -1,26 +1,197 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  color-scheme: light;
+  --bg: #f7f5f1;
+  --surface: #ffffff;
+  --surface-2: #f1ede6;
+  --ink: #181411;
+  --muted: #7b756c;
+  --line: #e7e1d8;
+  --line-strong: #d8d0c4;
+  --accent: #d93a24;
+  --accent-strong: #b62a16;
+  --accent-soft: #fbe9e4;
+  --positive: #1d7a50;
+  --positive-soft: #e4f3ea;
+  --glow: rgba(217, 58, 36, 0.075);
+  --shadow-soft: 0 1px 2px rgba(24, 20, 17, 0.04),
+    0 12px 32px -18px rgba(24, 20, 17, 0.16);
+  --shadow-float: 0 2px 6px rgba(24, 20, 17, 0.06),
+    0 20px 48px -20px rgba(24, 20, 17, 0.32);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: dark;
+    --bg: #0f0e0d;
+    --surface: #171614;
+    --surface-2: #1e1c19;
+    --ink: #f4f0ea;
+    --muted: #9b948a;
+    --line: #2a2723;
+    --line-strong: #3a3630;
+    --accent: #ff5c45;
+    --accent-strong: #ff8674;
+    --accent-soft: #2b1713;
+    --positive: #5bd39f;
+    --positive-soft: #11261d;
+    --glow: rgba(255, 92, 69, 0.07);
+    --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3),
+      0 12px 32px -18px rgba(0, 0, 0, 0.6);
+    --shadow-float: 0 2px 6px rgba(0, 0, 0, 0.4),
+      0 20px 48px -20px rgba(0, 0, 0, 0.8);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-float: var(--shadow-float);
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    background: var(--bg);
+  }
+
+  body {
+    background:
+      radial-gradient(90rem 32rem at 50% -12rem, var(--glow), transparent 70%),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "ss01" on;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--muted);
+    opacity: 0.8;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" on;
+  }
+
+  .anim-fade-up {
+    animation: fade-up 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+
+  .anim-toast {
+    animation: toast-in 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      color-mix(in srgb, var(--ink) 7%, transparent) 50%,
+      transparent 80%
+    );
+    transform: translateX(-100%);
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
