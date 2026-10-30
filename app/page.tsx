@@ -40,6 +40,7 @@ import type {
 import { useCollection } from "@/lib/use-collection";
 import { useValueHistory } from "@/lib/use-value-history";
 import { AddCardSheet } from "@/components/add-card-sheet";
+import { useAuth } from "@/components/auth-provider";
 import { CardDetailSheet } from "@/components/card-detail-sheet";
 import { CardTile } from "@/components/card-tile";
 import { MenuSheet } from "@/components/menu-sheet";
@@ -61,8 +62,10 @@ function cardLanguageFor(lang: CatalogLanguage): string {
 }
 
 export default function PokedexApp() {
-  const { cards, setCards, loaded, storageError, replaceAll } = useCollection();
-  const valueHistory = useValueHistory(cards, loaded);
+  const { account, scope, signOut } = useAuth();
+  const { cards, setCards, loaded, storageError, replaceAll } =
+    useCollection(scope);
+  const valueHistory = useValueHistory(cards, loaded, scope);
 
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -672,6 +675,8 @@ export default function PokedexApp() {
       <MenuSheet
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
+        accountName={account.username}
+        onSignOut={signOut}
         cardCount={cards.length}
         lastPriceUpdate={lastPriceUpdate}
         refreshState={refreshState}

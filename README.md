@@ -20,6 +20,7 @@ Suivez votre collection de cartes Pokémon dans un Pokédex personnel, simple et
 - Historique local de la valeur de la collection, avec courbe dans les statistiques
 - Statistiques par série et par état
 - Favoris, filtres par série, recherche locale et tri
+- Comptes locaux (pseudo + mot de passe) avec « Se souvenir de moi » et collection séparée par compte
 - Export / import JSON pour sauvegarder ou changer d'appareil
 - Ajout à l'écran d'accueil (manifest, icônes), thème clair/sombre automatique
 
@@ -47,8 +48,13 @@ npm run lint    # ESLint
 
 ## Données et prix
 
-Votre collection et son historique de valeur sont stockés **uniquement dans le `localStorage` de votre navigateur**.
-Aucun compte, aucune base de données, aucun envoi de vos données.
+Vos comptes, votre collection et son historique de valeur sont stockés **uniquement dans le stockage local de votre navigateur**.
+Aucun serveur, aucune base de données, aucun envoi de vos données.
+
+- Le pseudo et le mot de passe créent un compte local, protégé par un hachage PBKDF2-SHA256. Aucun e-mail ni récupération de mot de passe.
+- « Se souvenir de moi » conserve la session sur l'appareil ; sans cette option, elle est fermée à la fin de l'onglet.
+- Chaque compte a sa propre collection et son propre historique. Le premier compte créé reprend la collection déjà présente sur l'appareil.
+- Pour changer d'appareil, exportez puis importez la sauvegarde JSON : les comptes ne sont pas synchronisés.
 
 - Les prix proviennent de Cardmarket via TCGdex : la moyenne 30 jours est utilisée en priorité, avec repli sur les autres moyennes, la tendance puis le prix le plus bas. Ils restent indicatifs.
 - Les scans japonais sont souvent absents : vous pouvez ajouter et recadrer votre photo depuis la fiche de la carte.

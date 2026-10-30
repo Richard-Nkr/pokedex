@@ -19,9 +19,10 @@ function localDateKey(date = new Date()): string {
 export function useValueHistory(
   cards: OwnedCard[],
   ready: boolean,
+  scope?: string,
 ): ValueSnapshot[] {
   const [history, setHistory] = useState<ValueSnapshot[]>(() =>
-    loadValueHistory(),
+    loadValueHistory(scope),
   );
 
   useEffect(() => {
@@ -35,17 +36,17 @@ export function useValueHistory(
         value: Math.round(totals.value * 100) / 100,
         quantity: totals.totalQty,
       };
-      const stored = loadValueHistory();
+      const stored = loadValueHistory(scope);
       const next = mergeValueSnapshot(stored, snapshot);
       if (next === stored) {
         setHistory((current) => (current === stored ? current : next));
         return;
       }
-      saveValueHistory(next);
+      saveValueHistory(next, scope);
       setHistory(next);
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [cards, ready]);
+  }, [cards, ready, scope]);
 
   return history;
 }

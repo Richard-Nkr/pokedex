@@ -13,6 +13,10 @@ const VALID_CONDITIONS = new Set(CONDITIONS.map((c) => c.value));
 const VALID_LANGUAGES = new Set<string>(LANGUAGES);
 const VALID_CATALOG_LANGUAGES = new Set<string>(["fr", "en", "ja"]);
 
+function scopedKey(base: string, scope?: string): string {
+  return scope ? `${base}:${scope}` : base;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -108,10 +112,10 @@ export function normalizeCard(value: unknown): OwnedCard | null {
   };
 }
 
-export function loadCollection(): OwnedCard[] {
+export function loadCollection(scope?: string): OwnedCard[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(scopedKey(STORAGE_KEY, scope));
     if (!raw) return [];
     return parseCollection(raw) ?? [];
   } catch {
@@ -119,20 +123,25 @@ export function loadCollection(): OwnedCard[] {
   }
 }
 
-export function saveCollection(cards: OwnedCard[]): boolean {
+export function saveCollection(cards: OwnedCard[], scope?: string): boolean {
   if (typeof window === "undefined") return true;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+    window.localStorage.setItem(
+      scopedKey(STORAGE_KEY, scope),
+      JSON.stringify(cards),
+    );
     return true;
   } catch {
     return false;
   }
 }
 
-export function loadValueHistory(): ValueSnapshot[] {
+export function loadValueHistory(scope?: string): ValueSnapshot[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(VALUE_HISTORY_KEY);
+    const raw = window.localStorage.getItem(
+      scopedKey(VALUE_HISTORY_KEY, scope),
+    );
     if (!raw) return [];
     return sanitizeValueHistory(JSON.parse(raw));
   } catch {
@@ -140,14 +149,24 @@ export function loadValueHistory(): ValueSnapshot[] {
   }
 }
 
-export function saveValueHistory(history: ValueSnapshot[]): boolean {
+export function saveValueHistory(
+  history: ValueSnapshot[],
+  scope?: string,
+): boolean {
   if (typeof window === "undefined") return true;
   try {
-    window.localStorage.setItem(VALUE_HISTORY_KEY, JSON.stringify(history));
+    window.localStorage.setItem(
+      scopedKey(VALUE_HISTORY_KEY, scope),
+      JSON.stringify(history),
+    );
     return true;
   } catch {
     return false;
   }
+}
+
+export function hasLegacyData(): boolean {
+  return loadCollection().length > 0 || loadValueHistory().length > 0;
 }
 
 export function mergeValueSnapshot(

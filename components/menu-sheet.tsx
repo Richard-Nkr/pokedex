@@ -3,6 +3,7 @@
 import {
   ChevronRight,
   Download,
+  LogOut,
   RefreshCw,
   Upload,
 } from "lucide-react";
@@ -25,6 +26,8 @@ export function MenuSheet({
   onExport,
   onImport,
   storageError,
+  accountName,
+  onSignOut,
 }: {
   open: boolean;
   onClose: () => void;
@@ -35,6 +38,8 @@ export function MenuSheet({
   onExport: () => void;
   onImport: (cards: OwnedCard[]) => void;
   storageError: boolean;
+  accountName: string;
+  onSignOut: () => void;
 }) {
   const [pendingImport, setPendingImport] = useState<OwnedCard[] | null>(null);
   const [importName, setImportName] = useState("");
@@ -81,8 +86,22 @@ export function MenuSheet({
       open={open}
       onClose={onClose}
       title="Réglages"
-      subtitle="Prix, export et sauvegarde"
+      subtitle="Compte, prix et sauvegarde"
     >
+      <div className="mb-4 flex items-center gap-3 rounded-2xl border border-line bg-surface-2/50 px-3.5 py-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[15px] font-semibold text-accent-strong">
+          {Array.from(accountName.trim())[0]?.toLocaleUpperCase("fr") ?? "P"}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13px] font-semibold text-ink">
+            {accountName}
+          </span>
+          <span className="mt-0.5 block text-[11px] text-muted">
+            Compte local · cet appareil
+          </span>
+        </span>
+      </div>
+
       {storageError ? (
         <div className="mb-3 rounded-xl border border-accent/25 bg-accent-soft px-3.5 py-2.5 text-[11.5px] leading-relaxed text-accent-strong">
           Stockage local saturé : les dernières modifications peuvent ne pas être
@@ -178,10 +197,32 @@ export function MenuSheet({
 
       <div className="mt-6 rounded-2xl border border-dashed border-line px-4 py-3.5">
         <p className="text-[11px] leading-relaxed text-muted">
-          Votre collection est stockée uniquement sur cet appareil. Exportez
-          régulièrement une sauvegarde pour la retrouver ou changer d’appareil.
+          Votre compte et votre collection restent uniquement sur cet appareil.
+          Exportez régulièrement une sauvegarde pour la retrouver ou changer
+          d’appareil.
         </p>
       </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          onClose();
+          onSignOut();
+        }}
+        className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-line bg-surface px-3.5 py-2.5 text-left transition hover:bg-surface-2/70 active:scale-[0.995]"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-surface-2 text-accent">
+          <LogOut className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-medium text-ink">
+            Se déconnecter
+          </span>
+          <span className="mt-0.5 block truncate text-[11.5px] text-muted">
+            Fermer la session sur cet appareil
+          </span>
+        </span>
+      </button>
 
       <p className="mt-4 text-center text-[10.5px] text-muted/80">
         Pokédex TCG · prix indicatifs Cardmarket

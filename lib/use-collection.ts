@@ -12,13 +12,13 @@ import type { OwnedCard } from "./types";
 
 const emptySubscribe = () => () => {};
 
-export function useCollection() {
+export function useCollection(scope?: string) {
   const hydrated = useSyncExternalStore(
     emptySubscribe,
     () => true,
     () => false,
   );
-  const [cards, setCards] = useState<OwnedCard[]>(() => loadCollection());
+  const [cards, setCards] = useState<OwnedCard[]>(() => loadCollection(scope));
   const [storageError, setStorageError] = useState(false);
   const latestCards = useRef(cards);
 
@@ -29,16 +29,16 @@ export function useCollection() {
   useEffect(() => {
     if (!hydrated) return;
     const timer = window.setTimeout(() => {
-      const ok = saveCollection(cards);
+      const ok = saveCollection(cards, scope);
       setStorageError(!ok);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [cards, hydrated]);
+  }, [cards, hydrated, scope]);
 
   useEffect(() => {
     if (!hydrated) return;
     const flush = () => {
-      saveCollection(latestCards.current);
+      saveCollection(latestCards.current, scope);
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === "hidden") flush();
@@ -48,8 +48,9 @@ export function useCollection() {
     return () => {
       window.removeEventListener("pagehide", flush);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      saveCollection(latestCards.current, scope);
     };
-  }, [hydrated]);
+  }, [hydrated, scope]);
 
   const replaceAll = useCallback((next: OwnedCard[]) => {
     setCards(next);
